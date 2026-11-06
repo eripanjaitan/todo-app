@@ -5,7 +5,7 @@ Workspace-based to-do list with in-app reminders. Times are shown in Asia/Jakart
 ## Setup
 
 1. Install Node.js 20 or newer.
-2. Copy `.env.example` to `.env.local` and fill in real values:
+2. Copy `.env.example` to both `.env` (read by Prisma CLI) and `.env.local` (read by Next.js), then fill in real values in both:
    - `DATABASE_URL` (Neon pooled), `DIRECT_URL` (Neon direct)
    - `SESSION_SECRET` (32+ random characters)
    - `CRON_SECRET` (random string)
