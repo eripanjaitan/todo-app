@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { RECENT_KEY, RECENT_MAX, addRecent, readRecent, removeRecent, writeRecent } from "./recent-workspaces";
+import {
+  RECENT_KEY,
+  RECENT_MAX,
+  addRecent,
+  readRecent,
+  removeRecent,
+  writeRecent,
+  type RecentWorkspace,
+} from "./recent-workspaces";
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -14,7 +22,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 describe("recent workspaces (AC-7 to AC-9)", () => {
   it("puts the newest first, without duplicates, capped at 10", () => {
-    let list = [];
+    let list: RecentWorkspace[] = [];
     for (let i = 0; i < 12; i++) list = addRecent(list, { slug: `ws-${i}`, name: `W${i}` });
     expect(list).toHaveLength(RECENT_MAX);
     expect(list[0].slug).toBe("ws-11");
