@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({ task: { findMany: vi.fn(), create: vi.fn() } }));
+const db = vi.hoisted(() => ({
+  task: { findMany: vi.fn(), create: vi.fn() },
+  workspace: { findUnique: vi.fn() },
+}));
 const auth = vi.hoisted(() => ({ getWorkspaceSession: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/workspace-auth", () => auth);
@@ -19,8 +22,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-07T02:00:00.000Z"));
   auth.getWorkspaceSession.mockReset().mockResolvedValue({ workspaceId: "ws1" });
-  db.task.findMany.mockReset();
+  db.task.findMany.mockReset().mockResolvedValue([]);
   db.task.create.mockReset();
+  db.workspace.findUnique.mockReset().mockResolvedValue({ name: "Home" });
 });
 
 afterEach(() => {
@@ -97,5 +101,16 @@ describe("reminder state after dismiss or snooze (AC-34, AC-35)", () => {
     ]);
     const body = await (await GET(new Request("http://localhost/x"), ctx)).json();
     expect(body.tasks[0].reminder.isDue).toBe(true);
+  });
+});
+
+describe("workspace name in the task list (display name for the page title)", () => {
+  it("returns the workspace name alongside the tasks", async () => {
+    const body = await (await GET(new Request("http://localhost/x"), ctx)).json();
+    expect(body.name).toBe("Home");
+    expect(db.workspace.findUnique).toHaveBeenCalledWith({
+      where: { id: "ws1" },
+      select: { name: true },
+    });
   });
 });

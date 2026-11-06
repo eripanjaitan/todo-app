@@ -14,13 +14,17 @@ export async function GET(_req: Request, { params }: Ctx) {
   if (!session) return jsonError(401, "Not unlocked");
 
   const now = new Date();
-  const tasks = await prisma.task.findMany({
-    where: { workspaceId: session.workspaceId },
-    orderBy: { createdAt: "asc" },
-    include: { reminder: true },
-  });
+  const [workspace, tasks] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: session.workspaceId }, select: { name: true } }),
+    prisma.task.findMany({
+      where: { workspaceId: session.workspaceId },
+      orderBy: { createdAt: "asc" },
+      include: { reminder: true },
+    }),
+  ]);
 
   return NextResponse.json({
+    name: workspace?.name ?? slug,
     now: now.toISOString(),
     tasks: tasks.map((t) => ({
       id: t.id,
