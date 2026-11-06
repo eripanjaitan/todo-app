@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { formatJakarta } from "@/lib/time";
@@ -29,8 +29,30 @@ export function WorkspaceView({ slug }: { slug: string }) {
   const [codes, setCodes] = useState({ current: "", next: "" });
   const [reminderDraft, setReminderDraft] = useState<Record<string, { local: string; repeat: "NONE" | "DAILY" }>>({});
 
-  const load = useCallback(async () => {
-    const res = await fetch(`/api/workspaces/${encodeURIComponent(slug)}/tasks`, { cache: "no-store" });
+  const base = `/api/workspaces/${encodeURIComponent(slug)}`;
+
+  // Initial load. The guard stops a late response from updating an unmounted view.
+  useEffect(() => {
+    let active = true;
+    fetch(`${base}/tasks`, { cache: "no-store" }).then(async (res) => {
+      if (!active) return;
+      if (res.status === 401) {
+        setUnlocked(false);
+        return;
+      }
+      const data = await res.json();
+      if (!active) return;
+      setNow(new Date(data.now));
+      setTasks(data.tasks);
+    });
+    return () => {
+      active = false;
+    };
+  }, [base]);
+
+  // Reload after a change (not from an effect).
+  async function reload() {
+    const res = await fetch(`${base}/tasks`, { cache: "no-store" });
     if (res.status === 401) {
       setUnlocked(false);
       return;
@@ -38,11 +60,7 @@ export function WorkspaceView({ slug }: { slug: string }) {
     const data = await res.json();
     setNow(new Date(data.now));
     setTasks(data.tasks);
-  }, [slug]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  }
 
   async function call(method: string, url: string, body?: unknown): Promise<boolean> {
     const res = await fetch(url, {
@@ -56,11 +74,9 @@ export function WorkspaceView({ slug }: { slug: string }) {
       if (res.status === 401) setUnlocked(false);
       return false;
     }
-    await load();
+    await reload();
     return true;
   }
-
-  const base = `/api/workspaces/${encodeURIComponent(slug)}`;
 
   if (!unlocked) {
     return (

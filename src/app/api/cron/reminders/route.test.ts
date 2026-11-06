@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // vi.hoisted keeps the mock defined before vi.mock's factory runs.
 const { updateMany } = vi.hoisted(() => ({
-  updateMany: vi.fn(async (_args: unknown) => ({ count: 2 })),
+  updateMany: vi.fn(async () => ({ count: 2 })),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { reminder: { updateMany } } }));
 
@@ -36,7 +36,10 @@ describe("cron reminders route (AC-26, AC-27, AC-28)", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ marked: 2 });
-    const args = updateMany.mock.calls[0][0] as { where: { dueMarkedAt: null; dismissed: false } };
+    const calls = updateMany.mock.calls as unknown as Array<
+      [{ where: { dueMarkedAt: null; dismissed: false } }]
+    >;
+    const args = calls[0][0];
     expect(args.where.dueMarkedAt).toBeNull();
     expect(args.where.dismissed).toBe(false);
   });

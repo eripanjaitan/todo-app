@@ -1,11 +1,11 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const compat = new FlatCompat({ baseDirectory: __dirname });
-
-export default [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+// Next.js 16 ships flat-config exports, so no FlatCompat bridge is needed.
+const config = [
+  ...nextVitals,
+  ...nextTs,
   { ignores: [".next/**", "node_modules/**", "src/generated/**"] },
 ];
+
+export default config;

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import {
+  RECENT_KEY,
   addRecent,
   readRecent,
   removeRecent,
@@ -13,10 +14,34 @@ import {
   type RecentWorkspace,
 } from "@/lib/recent-workspaces";
 
+const RECENT_EVENT = "task-reminder:recent-changed";
+
+// Subscribe to changes in the device list (other tabs, and this tab's own writes).
+function subscribeRecent(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(RECENT_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(RECENT_EVENT, onChange);
+  };
+}
+
+function getRecentSnapshot() {
+  return window.localStorage.getItem(RECENT_KEY) ?? "";
+}
+
+function getRecentServerSnapshot() {
+  return "";
+}
+
 // AC-7 to AC-10 (recent list), AC-1 (create), AC-3 (open)
 export function HomeView() {
   const router = useRouter();
-  const [recent, setRecent] = useState<RecentWorkspace[]>([]);
+  const rawRecent = useSyncExternalStore(subscribeRecent, getRecentSnapshot, getRecentServerSnapshot);
+  const recent = useMemo<RecentWorkspace[]>(
+    () => readRecent({ getItem: () => rawRecent, setItem: () => {} }),
+    [rawRecent],
+  );
   const [openSlug, setOpenSlug] = useState("");
   const [openCode, setOpenCode] = useState("");
   const [newSlug, setNewSlug] = useState("");
@@ -24,20 +49,18 @@ export function HomeView() {
   const [newCode, setNewCode] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    setRecent(readRecent(window.localStorage));
+  const notifyRecent = useCallback(() => {
+    window.dispatchEvent(new Event(RECENT_EVENT));
   }, []);
 
   function remember(entry: RecentWorkspace) {
-    const next = addRecent(readRecent(window.localStorage), entry);
-    writeRecent(window.localStorage, next);
-    setRecent(next);
+    writeRecent(window.localStorage, addRecent(readRecent(window.localStorage), entry));
+    notifyRecent();
   }
 
   function forget(slug: string) {
-    const next = removeRecent(readRecent(window.localStorage), slug);
-    writeRecent(window.localStorage, next);
-    setRecent(next);
+    writeRecent(window.localStorage, removeRecent(readRecent(window.localStorage), slug));
+    notifyRecent();
   }
 
   async function submit(url: string, body: unknown): Promise<{ slug: string; name: string } | null> {
