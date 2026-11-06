@@ -7,7 +7,8 @@
 | `npm install` | Completed | User reported success |
 | `npm run lint` | PASSED | exit=0 |
 | `npm run build` | PASSED | exit=0 |
-| `npm test` | PASSED | Test Files 17 passed (17); Tests 71 passed (71); Duration 3.16s |
+| `npx tsc --noEmit` | PASSED | exit=0 |
+| `npm test` | PASSED | Test Files 17 passed (17); Tests 77 passed (77); Duration 2.75s |
 
 ## Acceptance criteria coverage
 
@@ -31,7 +32,7 @@ Status meanings: PASS = automated test covers it and the run exited 0. PARTIAL =
 | AC-18 | Code review only (no dangerouslySetInnerHTML) | REVIEW |
 | AC-19 | validation.test.ts; route tasks (400 on empty title) | PASS |
 | AC-20 | time.test.ts; route reminder PUT (stores UTC) | PASS |
-| AC-21 | route reminder DELETE (scoped to task and workspace; 401 without session) | PASS (pending local run) |
+| AC-21 | route reminder DELETE (scoped to task and workspace; 401 without session) | PASS |
 | AC-22 | time.test.ts; route reminder PUT (past time rejected) | PASS |
 | AC-23 | route reminder PUT (one reminder per task via upsert) | PARTIAL |
 | AC-24 | route tasks/[id] PATCH (transaction cancels reminder) | PASS |
@@ -45,14 +46,13 @@ Status meanings: PASS = automated test covers it and the run exited 0. PARTIAL =
 | AC-31 | Code review only (workspace filter in every query) | REVIEW |
 | AC-32 | route dismiss (one-time sets dismissed) | PASS |
 | AC-33 | route snooze (options) | PASS |
-| AC-34 | route snooze; tasks GET (hidden until snooze time, reappears after) | PASS (pending local run) |
-| AC-35 | tasks GET (dismissed reminder stays hidden when read again). Database persistence itself is not tested. | PARTIAL (pending local run) |
-| AC-36, AC-37 | time.test.ts (conversion); formatJakarta test (Jakarta wall time) | PASS (pending local run) |
+| AC-34 | route snooze; tasks GET (hidden until snooze time, reappears after) | PASS |
+| AC-35 | tasks GET (dismissed reminder stays hidden when read again). Database persistence itself is not tested. | PARTIAL |
+| AC-36, AC-37 | time.test.ts (conversion); formatJakarta test (Jakarta wall time) | PASS |
 | AC-38 | reminders.test.ts (exact instant); time.test.ts | PASS |
 | AC-39 | Code review only (no logging of secrets) | REVIEW |
 | AC-40 | Code review only (no raw SQL) | REVIEW |
 | AC-41 | Code review only (.gitignore, .env.example) | REVIEW |
 
 ## Open items
-- Tests for AC-21, AC-34, AC-35, and AC-37 were added after the last local run and have not been executed yet.
 - Lint and build pass with no output recorded. Exit codes are the evidence.

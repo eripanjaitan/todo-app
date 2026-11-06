@@ -18,3 +18,9 @@ Implemented the feature on `feature/task-reminder-mvp` (commits d4f3f51, 80ddafb
 Fixed two bugs found in self-review: task completion response, and a hoisting error in the cron test mock.
 Static checks: no dangerouslySetInnerHTML, no raw SQL, no logging of secrets.
 NOT verified: npm install, lint, build, and tests have not been run (no network in the sandbox). See docs/test-report.md.
+
+## Code Reviewer, 2026-11-06
+Reviewed changed files from disk. Result: 0 blockers, 3 major, 3 minor. Recorded in `docs/review.md`.
+
+## Developer, 2026-11-06 (Stage 5 fixes)
+Resolved M1, M2, M3, m1, m2, m3 as decided by the user. Added migration `20261106130000_reminder_scheduled_at`, lock and creation rate limits, session revocation on code change, trusted client IP, and tests for each. Local checks still required.

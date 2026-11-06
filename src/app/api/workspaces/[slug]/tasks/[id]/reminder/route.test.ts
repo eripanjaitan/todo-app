@@ -55,6 +55,7 @@ describe("PUT /api/workspaces/[slug]/tasks/[id]/reminder (AC-20, AC-22)", () => 
     expect(args.where).toEqual({ taskId: "t1" });
     expect(args.create.dueAt.toISOString()).toBe("2099-01-01T02:00:00.000Z");
     expect(args.create.repeat).toBe("DAILY");
+    expect(args.create.scheduledAt.toISOString()).toBe("2099-01-01T02:00:00.000Z");
   });
 
   it("refuses a reminder on a completed task with 409", async () => {

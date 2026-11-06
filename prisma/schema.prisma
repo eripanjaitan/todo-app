@@ -47,6 +47,8 @@ model Reminder {
   taskId      String         @unique
   task        Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
   dueAt       DateTime
+  // Daily schedule anchor (m2). A snooze changes dueAt only, so the daily time is kept.
+  scheduledAt DateTime
   repeat      ReminderRepeat @default(NONE)
   dismissed   Boolean        @default(false)
   dueMarkedAt DateTime?

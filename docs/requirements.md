@@ -139,3 +139,11 @@ No items are pending.
 
 ## 7. Approval
 Stage 1 needs your explicit approval before Stage 2 starts. Reply "approved" to proceed. Your answers in this round are recorded above, but the file still needs the approval itself.
+
+## 8. Stage 5 Changes (from code review, decided by the user)
+- **AC-42 (lock):** After 5 failed unlock attempts for a workspace within 15 minutes, the workspace is locked for 15 minutes. Every unlock and access-code attempt is refused during the lock. A successful unlock resets the failure count.
+- **AC-43 (creation limit):** A single IP may create at most 10 workspaces per hour.
+- **AC-44 (code change):** Changing the access code signs out every other device. The device that made the change stays signed in.
+- **AC-25a and AC-34 (daily reminders):** A snooze changes only the current occurrence. Each reminder stores a schedule anchor (`scheduledAt`). Dismissing a daily reminder moves it to the next occurrence on that anchor's daily time.
+- **Client IP:** Taken from `x-real-ip`, or the last `x-forwarded-for` entry when that header is absent. The first entry is client-supplied and is not used.
+- **Migration:** `20261106130000_reminder_scheduled_at` adds `scheduledAt` and backfills it from `dueAt`. No rows are removed.

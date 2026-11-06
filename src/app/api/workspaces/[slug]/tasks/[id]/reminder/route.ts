@@ -35,10 +35,12 @@ export async function PUT(req: Request, { params }: Ctx) {
       workspaceId: session.workspaceId,
       taskId: id,
       dueAt,
+      scheduledAt: dueAt,
       repeat: body.data.repeat,
     },
     update: {
       dueAt,
+      scheduledAt: dueAt,
       repeat: body.data.repeat,
       dismissed: false,
       dueMarkedAt: null,

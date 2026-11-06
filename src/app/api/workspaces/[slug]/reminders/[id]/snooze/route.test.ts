@@ -59,3 +59,12 @@ describe("POST /api/workspaces/[slug]/reminders/[id]/snooze (AC-33, AC-34)", () 
     expect(data.dueAt.toISOString()).toBe("2026-11-08T02:00:00.000Z");
   });
 });
+
+describe("snooze keeps the daily schedule anchor (m2)", () => {
+  it("changes only dueAt, never scheduledAt", async () => {
+    await POST(req({ option: "10m" }), ctx);
+    const data = db.reminder.update.mock.calls[0][0].data;
+    expect(data.scheduledAt).toBeUndefined();
+    expect(data.dueAt).toBeDefined();
+  });
+});

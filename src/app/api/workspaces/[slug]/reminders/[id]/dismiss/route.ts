@@ -6,7 +6,8 @@ import { advanceDaily, isDueAt, isRepeating } from "@/lib/reminders";
 
 type Ctx = { params: Promise<{ slug: string; id: string }> };
 
-// AC-32, AC-25a: dismiss a due reminder. A daily repeat moves to its next occurrence.
+// AC-32, AC-25a: dismiss a due reminder. A daily repeat moves to its next occurrence,
+// counted from the schedule anchor (scheduledAt), so an earlier snooze does not shift it (m2).
 export async function POST(_req: Request, { params }: Ctx) {
   const { slug, id } = await params;
   const session = await getWorkspaceSession(slug);
@@ -23,7 +24,7 @@ export async function POST(_req: Request, { params }: Ctx) {
   const updated = isRepeating(reminder.repeat)
     ? await prisma.reminder.update({
         where: { id },
-        data: { dueAt: advanceDaily(reminder.dueAt, now), dueMarkedAt: null },
+        data: { dueAt: advanceDaily(reminder.scheduledAt, now), dueMarkedAt: null },
       })
     : await prisma.reminder.update({
         where: { id },

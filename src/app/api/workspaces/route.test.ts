@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({ workspace: { findUnique: vi.fn(), create: vi.fn() } }));
 const auth = vi.hoisted(() => ({ setWorkspaceCookie: vi.fn() }));
+const rl = vi.hoisted(() => ({ allowCreateAttempt: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/workspace-auth", () => auth);
+vi.mock("@/lib/rate-limit", () => rl);
 vi.mock("@/lib/password", () => ({ hashAccessCode: async () => "hashed-code" }));
 
 import { POST } from "./route";
@@ -11,19 +13,28 @@ import { POST } from "./route";
 const req = (body: unknown) =>
   new Request("http://localhost/api/workspaces", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-real-ip": "203.0.113.9" },
     body: JSON.stringify(body),
   });
 
 const valid = { slug: "home-list", name: "Home", accessCode: "12345678" };
 
 beforeEach(() => {
+  rl.allowCreateAttempt.mockReset().mockResolvedValue(true);
   db.workspace.findUnique.mockReset();
   db.workspace.create.mockReset();
   auth.setWorkspaceCookie.mockReset();
 });
 
-describe("POST /api/workspaces (AC-1)", () => {
+describe("POST /api/workspaces (AC-1, AC-43)", () => {
+  it("returns 429 when the IP has created too many workspaces (AC-43)", async () => {
+    rl.allowCreateAttempt.mockResolvedValue(false);
+    const res = await POST(req(valid));
+    expect(res.status).toBe(429);
+    expect(rl.allowCreateAttempt).toHaveBeenCalledWith("203.0.113.9");
+    expect(db.workspace.create).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid slug with 400", async () => {
     const res = await POST(req({ ...valid, slug: "Bad Slug" }));
     expect(res.status).toBe(400);

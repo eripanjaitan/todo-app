@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  RECENT_KEY,
-  RECENT_MAX,
-  addRecent,
-  readRecent,
-  removeRecent,
-  writeRecent,
-  type RecentWorkspace,
-} from "./recent-workspaces";
+import { RECENT_KEY, RECENT_MAX, addRecent, readRecent, removeRecent, writeRecent, type RecentWorkspace, } from "./recent-workspaces";
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = { ...initial };

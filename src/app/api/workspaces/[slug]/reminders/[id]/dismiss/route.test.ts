@@ -35,7 +35,11 @@ describe("POST /api/workspaces/[slug]/reminders/[id]/dismiss (AC-25a, AC-32)", (
 
   it("returns 409 for a reminder that is not due yet", async () => {
     db.reminder.findFirst.mockResolvedValue({
-      id: "r1", dueAt: new Date("2026-11-08T02:00:00.000Z"), repeat: "NONE", dismissed: false,
+      id: "r1",
+      dueAt: new Date("2026-11-08T02:00:00.000Z"),
+      scheduledAt: new Date("2026-11-08T02:00:00.000Z"),
+      repeat: "NONE",
+      dismissed: false,
     });
     expect((await POST(req(), ctx)).status).toBe(409);
     expect(db.reminder.update).not.toHaveBeenCalled();
@@ -43,21 +47,43 @@ describe("POST /api/workspaces/[slug]/reminders/[id]/dismiss (AC-25a, AC-32)", (
 
   it("dismisses a one-time reminder", async () => {
     db.reminder.findFirst.mockResolvedValue({
-      id: "r1", dueAt: new Date("2026-11-07T01:00:00.000Z"), repeat: "NONE", dismissed: false,
+      id: "r1",
+      dueAt: new Date("2026-11-07T01:00:00.000Z"),
+      scheduledAt: new Date("2026-11-07T01:00:00.000Z"),
+      repeat: "NONE",
+      dismissed: false,
     });
-    const res = await POST(req(), ctx);
-    expect(res.status).toBe(200);
+    expect((await POST(req(), ctx)).status).toBe(200);
     expect(db.reminder.update.mock.calls[0][0].data).toEqual({ dismissed: true });
   });
 
   it("moves a daily reminder to its next occurrence instead of dismissing it (AC-25a)", async () => {
     db.reminder.findFirst.mockResolvedValue({
-      id: "r1", dueAt: new Date("2026-11-06T02:00:00.000Z"), repeat: "DAILY", dismissed: false,
+      id: "r1",
+      dueAt: new Date("2026-11-06T02:00:00.000Z"),
+      scheduledAt: new Date("2026-11-06T02:00:00.000Z"),
+      repeat: "DAILY",
+      dismissed: false,
     });
     await POST(req(), ctx);
     const data = db.reminder.update.mock.calls[0][0].data;
     expect(data.dueAt.toISOString()).toBe("2026-11-08T02:00:00.000Z");
     expect(data.dueMarkedAt).toBeNull();
     expect(data.dismissed).toBeUndefined();
+  });
+
+  it("after a snooze, dismissing a daily reminder returns to the original daily time (m2)", async () => {
+    // Snoozed to 02:10 UTC today; anchor is 02:00 UTC daily.
+    db.reminder.findFirst.mockResolvedValue({
+      id: "r1",
+      dueAt: new Date("2026-11-07T02:10:00.000Z"),
+      scheduledAt: new Date("2026-11-06T02:00:00.000Z"),
+      repeat: "DAILY",
+      dismissed: false,
+    });
+    vi.setSystemTime(new Date("2026-11-07T02:10:00.000Z"));
+    await POST(req(), ctx);
+    const data = db.reminder.update.mock.calls[0][0].data;
+    expect(data.dueAt.toISOString()).toBe("2026-11-08T02:00:00.000Z");
   });
 });
