@@ -66,3 +66,36 @@ describe("POST /api/workspaces/[slug]/tasks (AC-16, AC-19)", () => {
     expect(db.task.create.mock.calls[0][0].data.workspaceId).toBe("ws1");
   });
 });
+
+describe("reminder state after dismiss or snooze (AC-34, AC-35)", () => {
+  const taskWith = (reminder: object) => ({
+    id: "t1", title: "Pay rent", notes: null, completed: false,
+    reminder: { id: "r1", repeat: "NONE", ...reminder },
+  });
+
+  it("a dismissed reminder stays hidden from the due panel when read again (AC-35)", async () => {
+    db.task.findMany.mockResolvedValue([
+      taskWith({ dueAt: new Date("2026-11-07T01:00:00.000Z"), dismissed: true }),
+    ]);
+    const body = await (await GET(new Request("http://localhost/x"), ctx)).json();
+    expect(body.tasks[0].reminder.dismissed).toBe(true);
+    expect(body.tasks[0].reminder.isDue).toBe(false);
+  });
+
+  it("a snoozed reminder is hidden until its new time (AC-34)", async () => {
+    db.task.findMany.mockResolvedValue([
+      taskWith({ dueAt: new Date("2026-11-07T02:10:00.000Z"), dismissed: false }),
+    ]);
+    const body = await (await GET(new Request("http://localhost/x"), ctx)).json();
+    expect(body.tasks[0].reminder.isDue).toBe(false);
+  });
+
+  it("a snoozed reminder reappears once its new time has passed (AC-34)", async () => {
+    vi.setSystemTime(new Date("2026-11-07T02:15:00.000Z"));
+    db.task.findMany.mockResolvedValue([
+      taskWith({ dueAt: new Date("2026-11-07T02:10:00.000Z"), dismissed: false }),
+    ]);
+    const body = await (await GET(new Request("http://localhost/x"), ctx)).json();
+    expect(body.tasks[0].reminder.isDue).toBe(true);
+  });
+});

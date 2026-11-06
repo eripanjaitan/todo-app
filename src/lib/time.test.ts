@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isInPast, jakartaLocalToUtc, snoozeTarget, tomorrowNineJakarta } from "./time";
+import { formatJakarta, isInPast, jakartaLocalToUtc, snoozeTarget, tomorrowNineJakarta } from "./time";
 
 describe("jakartaLocalToUtc (AC-16, AC-20, AC-36)", () => {
   it("converts Jakarta wall time to UTC (UTC+7)", () => {
@@ -41,5 +41,16 @@ describe("snooze targets (AC-33)", () => {
   it("uses the Jakarta calendar day near UTC midnight", () => {
     // 18:00Z on 7 Nov is 01:00 WIB on 8 Nov, so tomorrow 09:00 is 9 Nov 09:00 WIB.
     expect(tomorrowNineJakarta(new Date("2026-11-07T18:00:00.000Z")).toISOString()).toBe("2026-11-09T02:00:00.000Z");
+  });
+});
+
+describe("formatJakarta (AC-37)", () => {
+  it("shows Jakarta wall time, not UTC", () => {
+    // 02:00 UTC is 09:00 in Jakarta.
+    const text = formatJakarta(new Date("2026-11-07T02:00:00.000Z"));
+    expect(text).toContain("09:00");
+    expect(text).toContain("Nov 2026");
+    expect(text).toContain("WIB");
+    expect(text).not.toContain("02:00");
   });
 });

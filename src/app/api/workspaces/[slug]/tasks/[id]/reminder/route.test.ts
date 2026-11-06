@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   task: { findFirst: vi.fn() },
-  reminder: { upsert: vi.fn() },
+  reminder: { upsert: vi.fn(), deleteMany: vi.fn() },
 }));
 const auth = vi.hoisted(() => ({ getWorkspaceSession: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/workspace-auth", () => auth);
 
-import { PUT } from "./route";
+import { DELETE, PUT } from "./route";
 
 const ctx = { params: Promise.resolve({ slug: "home-list", id: "t1" }) };
 const put = (body: unknown) =>
@@ -62,5 +62,21 @@ describe("PUT /api/workspaces/[slug]/tasks/[id]/reminder (AC-20, AC-22)", () => 
     const res = await PUT(put({ dueLocal: "2099-01-01T09:00" }), ctx);
     expect(res.status).toBe(409);
     expect(db.reminder.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/workspaces/[slug]/tasks/[id]/reminder (AC-21)", () => {
+  it("returns 401 without a session and deletes nothing", async () => {
+    auth.getWorkspaceSession.mockResolvedValue(null);
+    const res = await DELETE(new Request("http://localhost/x", { method: "DELETE" }), ctx);
+    expect(res.status).toBe(401);
+    expect(db.reminder.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("removes only the reminder for this task in this workspace", async () => {
+    db.reminder.deleteMany.mockResolvedValue({ count: 1 });
+    const res = await DELETE(new Request("http://localhost/x", { method: "DELETE" }), ctx);
+    expect(res.status).toBe(200);
+    expect(db.reminder.deleteMany).toHaveBeenCalledWith({ where: { taskId: "t1", workspaceId: "ws1" } });
   });
 });
