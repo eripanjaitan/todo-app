@@ -37,12 +37,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
     data,
     select: { id: true, title: true, notes: true, completed: true },
   });
-  const [updated] = becomingComplete
-    ? await prisma.$transaction([
-        prisma.reminder.deleteMany({ where: { taskId: id, workspaceId: session.workspaceId } }),
-        update,
-      ])
-    : [await update];
+  let updated;
+  if (becomingComplete) {
+    // $transaction returns one result per operation; the task is the second.
+    const results = await prisma.$transaction([
+      prisma.reminder.deleteMany({ where: { taskId: id, workspaceId: session.workspaceId } }),
+      update,
+    ]);
+    updated = results[1];
+  } else {
+    updated = await update;
+  }
 
   return NextResponse.json(updated);
 }
