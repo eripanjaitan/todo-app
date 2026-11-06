@@ -25,6 +25,10 @@ interface Draft {
   local: string;
   repeat: Repeat;
 }
+interface TaskDraft {
+  title: string;
+  notes: string;
+}
 
 const card = "rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
 const dueCard = "rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm";
@@ -49,13 +53,15 @@ function toJakartaInput(iso: string): string {
 // AC-23 to AC-35 in the UI. All text is rendered as plain text by React (AC-18).
 export function WorkspaceView({ slug }: { slug: string }) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [now, setNow] = useState<Date>(() => new Date());
   const [name, setName] = useState<string | null>(null);
+  const [now, setNow] = useState<Date>(() => new Date());
   const [unlocked, setUnlocked] = useState(true);
   const [title, setTitle] = useState("");
   const [codes, setCodes] = useState({ current: "", next: "" });
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [taskDrafts, setTaskDrafts] = useState<Record<string, TaskDraft>>({});
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDialogElement>(null);
 
   const base = `/api/workspaces/${encodeURIComponent(slug)}`;
@@ -109,6 +115,7 @@ export function WorkspaceView({ slug }: { slug: string }) {
     return true;
   }
 
+  // Reminder time editor.
   function openEditor(task: Task) {
     setDrafts((d) => ({
       ...d,
@@ -135,6 +142,30 @@ export function WorkspaceView({ slug }: { slug: string }) {
       repeat: draft.repeat,
     });
     if (ok) setEditingId(null);
+  }
+
+  // Task description editor (title and notes).
+  function openTaskEditor(task: Task) {
+    setTaskDrafts((d) => ({ ...d, [task.id]: { title: task.title, notes: task.notes ?? "" } }));
+    setEditingTaskId(task.id);
+  }
+
+  function updateTaskDraft(id: string, patch: Partial<TaskDraft>) {
+    setTaskDrafts((d) => ({
+      ...d,
+      [id]: { title: d[id]?.title ?? "", notes: d[id]?.notes ?? "", ...patch },
+    }));
+  }
+
+  async function saveTask(task: Task) {
+    const draft = taskDrafts[task.id];
+    if (!draft) return;
+    const notes = draft.notes.trim();
+    const ok = await call("PATCH", `${base}/tasks/${task.id}`, {
+      title: draft.title.trim(),
+      notes: notes === "" ? null : notes,
+    });
+    if (ok) setEditingTaskId(null);
   }
 
   function openSettings() {
@@ -250,6 +281,9 @@ export function WorkspaceView({ slug }: { slug: string }) {
           {tasks.map((t) => {
             const active = t.reminder && !t.reminder.dismissed ? t.reminder : null;
             const draft = drafts[t.id];
+            const taskDraft = taskDrafts[t.id];
+            const editingThisTask = editingTaskId === t.id;
+            const editingThisReminder = editingId === t.id;
             return (
               <li key={t.id} className={active?.isDue ? dueCard : card}>
                 <div className="flex items-start gap-3">
@@ -262,12 +296,54 @@ export function WorkspaceView({ slug }: { slug: string }) {
                   />
 
                   <div className="min-w-0 flex-1">
-                    <p className={t.completed ? "text-slate-400 line-through" : "font-medium text-slate-900"}>
-                      {t.title}
-                    </p>
-                    {t.notes && <p className="mt-0.5 text-sm text-slate-500">{t.notes}</p>}
+                    {editingThisTask && taskDraft ? (
+                      <form
+                        className="space-y-3"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          saveTask(t);
+                        }}
+                      >
+                        <div>
+                          <label htmlFor={`title-${t.id}`} className={fieldLabel}>Task</label>
+                          <input
+                            id={`title-${t.id}`}
+                            className={input}
+                            value={taskDraft.title}
+                            maxLength={200}
+                            onChange={(e) => updateTaskDraft(t.id, { title: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`notes-${t.id}`} className={fieldLabel}>Notes (optional)</label>
+                          <textarea
+                            id={`notes-${t.id}`}
+                            className={input}
+                            rows={3}
+                            maxLength={2000}
+                            value={taskDraft.notes}
+                            onChange={(e) => updateTaskDraft(t.id, { notes: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button className={primary}>Save</button>
+                          <button type="button" className={secondary} onClick={() => setEditingTaskId(null)}>
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <p className={t.completed ? "text-slate-400 line-through" : "font-medium text-slate-900"}>
+                          {t.title}
+                        </p>
+                        {t.notes && <p className="mt-0.5 text-sm text-slate-500">{t.notes}</p>}
+                      </>
+                    )}
 
-                    {active && editingId !== t.id && (
+                    {/* Reminder time, then the links below it. */}
+                    {active && !editingThisReminder && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                         <Clock size={14} aria-hidden="true" />
                         <span>{formatJakarta(new Date(active.dueAt))}</span>
@@ -277,22 +353,27 @@ export function WorkspaceView({ slug }: { slug: string }) {
                         {active.repeat === "DAILY" && (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">Daily</span>
                         )}
-                        {!t.completed && (
-                          <button className={linkButton} onClick={() => openEditor(t)}>Edit</button>
-                        )}
-                        <button className={dangerLink} onClick={() => call("DELETE", `${base}/tasks/${t.id}/reminder`)}>
-                          Remove reminder
-                        </button>
                       </div>
                     )}
 
-                    {!active && !t.completed && editingId !== t.id && (
-                      <button className={`${linkButton} mt-2`} onClick={() => openEditor(t)}>
-                        + Add reminder
-                      </button>
+                    {!editingThisTask && !editingThisReminder && (
+                      <div className="mt-2 flex flex-wrap gap-3">
+                        <button className={linkButton} onClick={() => openTaskEditor(t)}>Edit</button>
+                        {active && !t.completed && (
+                          <button className={linkButton} onClick={() => openEditor(t)}>Change time</button>
+                        )}
+                        {!active && !t.completed && (
+                          <button className={linkButton} onClick={() => openEditor(t)}>+ Add reminder</button>
+                        )}
+                        {active && (
+                          <button className={dangerLink} onClick={() => call("DELETE", `${base}/tasks/${t.id}/reminder`)}>
+                            Remove reminder
+                          </button>
+                        )}
+                      </div>
                     )}
 
-                    {editingId === t.id && draft && (
+                    {editingThisReminder && draft && (
                       <form
                         className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
                         onSubmit={(e) => {
@@ -350,7 +431,7 @@ export function WorkspaceView({ slug }: { slug: string }) {
       <dialog
         ref={settingsRef}
         aria-labelledby="settings-heading"
-        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="m-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/40"
       >
         <div className="space-y-6 p-6">
           <div className="flex items-center justify-between">
