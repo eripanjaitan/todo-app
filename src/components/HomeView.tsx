@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { X } from "lucide-react";
+import { Clock, Lock, Plus, X } from "lucide-react";
 import {
   RECENT_KEY,
   addRecent,
@@ -34,6 +33,20 @@ function getRecentServerSnapshot() {
   return "";
 }
 
+// Which form is shown. "open" is the default.
+type Mode = "open" | "create";
+
+const card = "space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm";
+const label = "mb-1 block text-sm font-medium text-slate-700";
+const input =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900";
+const primaryButton =
+  "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50";
+const hint = "mt-1 text-xs text-slate-500";
+
+const switchButton =
+  "mt-2 w-full rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900";
+
 // AC-7 to AC-10 (recent list), AC-1 (create), AC-3 (open)
 export function HomeView() {
   const router = useRouter();
@@ -42,6 +55,8 @@ export function HomeView() {
     () => readRecent({ getItem: () => rawRecent, setItem: () => {} }),
     [rawRecent],
   );
+
+  const [mode, setMode] = useState<Mode>("open");
   const [openSlug, setOpenSlug] = useState("");
   const [openCode, setOpenCode] = useState("");
   const [newSlug, setNewSlug] = useState("");
@@ -63,7 +78,18 @@ export function HomeView() {
     notifyRecent();
   }
 
-  async function submit(url: string, body: unknown): Promise<{ slug: string; name: string } | null> {
+  // Switch between the open and create forms.
+  function switchMode() {
+    setMode((current) => (current === "open" ? "create" : "open"));
+  }
+
+  // A recent chip opens the open form with the slug filled in (the code field autofocuses).
+  function pickRecent(slug: string) {
+    setOpenSlug(slug);
+    setMode("open");
+  }
+
+  async function submit(url: string, body: unknown): Promise<RecentWorkspace | null> {
     setBusy(true);
     try {
       const res = await fetch(url, {
@@ -110,35 +136,43 @@ export function HomeView() {
     }
   }
 
-  const input = "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm";
-  const button =
-    "rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50";
-
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Task Reminder</h1>
+      <header className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Task Reminder</h1>
+        <p className="text-sm text-slate-600">
+          Private to-do lists with reminders in Jakarta time. Each workspace is protected by its own access code.
+        </p>
+      </header>
 
       {recent.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-medium">Recent workspaces</h2>
-          <ul className="space-y-2">
+        <section aria-labelledby="recent-heading" className="space-y-3">
+          <h2 id="recent-heading" className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Clock size={16} aria-hidden="true" />
+            Recent workspaces
+          </h2>
+          <ul className="flex flex-wrap gap-2">
             {recent.map((r) => (
-              <li key={r.slug} className="flex items-center justify-between rounded-md bg-white p-3 shadow-sm">
+              <li
+                key={r.slug}
+                className="flex items-center gap-1 rounded-full border border-slate-200 bg-white py-1 pl-3 pr-1 text-sm shadow-sm"
+              >
                 <button
                   type="button"
-                  className="text-left text-sm"
-                  onClick={() => setOpenSlug(r.slug)}
+                  className="font-medium text-slate-900 hover:underline"
+                  onClick={() => pickRecent(r.slug)}
+                  title={`Open /${r.slug}`}
                 >
-                  <span className="font-medium">{r.name}</span>{" "}
-                  <span className="text-slate-500">/{r.slug}</span>
+                  {r.name}
                 </button>
+                <span className="text-slate-400">/{r.slug}</span>
                 <button
                   type="button"
                   aria-label={`Remove ${r.slug} from recent list`}
-                  className="text-slate-400 hover:text-slate-700"
+                  className="ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                   onClick={() => forget(r.slug)}
                 >
-                  <X size={16} />
+                  <X size={14} aria-hidden="true" />
                 </button>
               </li>
             ))}
@@ -146,31 +180,100 @@ export function HomeView() {
         </section>
       )}
 
-      <section className="space-y-3 rounded-md bg-white p-4 shadow-sm">
-        <h2 className="font-medium">Open a workspace</h2>
-        <form onSubmit={onOpen} className="space-y-2">
-          <input className={input} placeholder="Workspace slug" value={openSlug}
-            onChange={(e) => setOpenSlug(e.target.value)} required />
-          <input className={input} type="password" placeholder="Access code" value={openCode}
-            onChange={(e) => setOpenCode(e.target.value)} required />
-          <button className={button} disabled={busy}>Open</button>
-        </form>
-      </section>
+      <section aria-labelledby="start-heading" className={card}>
+        {mode === "open" && (
+          <form id="open-panel" onSubmit={onOpen} className="space-y-3">
+            <h2 id="start-heading" className="flex items-center gap-2 font-semibold text-slate-900">
+              <Lock size={16} aria-hidden="true" />
+              Open a workspace
+            </h2>
+            <p className="text-sm text-slate-500">Enter the slug and access code you were given.</p>
+            <div>
+              <label htmlFor="open-slug" className={label}>Workspace slug</label>
+              <input
+                id="open-slug"
+                className={input}
+                placeholder="home-list"
+                autoComplete="off"
+                value={openSlug}
+                onChange={(e) => setOpenSlug(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="open-code" className={label}>Access code</label>
+              <input
+                id="open-code"
+                type="password"
+                className={input}
+                autoComplete="current-password"
+                autoFocus={openSlug !== ""}
+                value={openCode}
+                onChange={(e) => setOpenCode(e.target.value)}
+                required
+              />
+            </div>
+            <button className={primaryButton} disabled={busy}>Open workspace</button>
+          </form>
+        )}
 
-      <section className="space-y-3 rounded-md bg-white p-4 shadow-sm">
-        <h2 className="font-medium">Create a workspace</h2>
-        <form onSubmit={onCreate} className="space-y-2">
-          <input className={input} placeholder="Slug (lowercase, digits, hyphens)" value={newSlug}
-            onChange={(e) => setNewSlug(e.target.value)} required />
-          <input className={input} placeholder="Name" value={newName}
-            onChange={(e) => setNewName(e.target.value)} required />
-          <input className={input} type="password" placeholder="Access code (min 8 characters)" value={newCode}
-            onChange={(e) => setNewCode(e.target.value)} required minLength={8} />
-          <button className={button} disabled={busy}>Create</button>
-        </form>
-        <p className="text-xs text-slate-500">
-          Lost access codes cannot be recovered. <Link href="/" className="underline">Home</Link>
-        </p>
+        {mode === "create" && (
+          <form id="create-panel" onSubmit={onCreate} className="space-y-3">
+            <h2 id="start-heading" className="flex items-center gap-2 font-semibold text-slate-900">
+              <Plus size={16} aria-hidden="true" />
+              Create a workspace
+            </h2>
+            <p className="text-sm text-slate-500">Start a new private list.</p>
+            <div>
+              <label htmlFor="new-slug" className={label}>Slug</label>
+              <input
+                id="new-slug"
+                className={input}
+                placeholder="home-list"
+                autoComplete="off"
+                value={newSlug}
+                onChange={(e) => setNewSlug(e.target.value)}
+                required
+              />
+              <p className={hint}>Lowercase letters, numbers, and hyphens. 3 to 40 characters.</p>
+            </div>
+            <div>
+              <label htmlFor="new-name" className={label}>Name</label>
+              <input
+                id="new-name"
+                className={input}
+                placeholder="Home"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="new-code" className={label}>Access code</label>
+              <input
+                id="new-code"
+                type="password"
+                className={input}
+                autoComplete="new-password"
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value)}
+                required
+                minLength={8}
+              />
+              <p className={hint}>At least 8 characters. A lost code cannot be recovered.</p>
+            </div>
+            <button className={primaryButton} disabled={busy}>Create workspace</button>
+          </form>
+        )}
+
+        <button
+          type="button"
+          className={switchButton}
+          aria-controls={mode === "open" ? "create-panel" : "open-panel"}
+          onClick={switchMode}
+        >
+          {mode === "open" ? "New here? Create a workspace" : "Already have a workspace? Open it"}
+        </button>
       </section>
     </div>
   );
